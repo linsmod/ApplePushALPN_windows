@@ -1,6 +1,7 @@
 ﻿using ConsoleApp2;
 using IWshRuntimeLibrary;
 using System;
+using System.Diagnostics;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -15,6 +16,7 @@ namespace Push反向代理
         public Form1()
         {
             InitializeComponent();
+            FormXmlSerializer.SaveToFile(this, this.Name + "_layout.xml");
             this.StartPosition = FormStartPosition.CenterScreen;
         }
 
@@ -89,14 +91,50 @@ namespace Push反向代理
 
         private void Form1_Load(object sender, EventArgs e)
         {
+
             this.notifyIcon1.Text = this.Text;
             string startupPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
             string shortcutPath = Path.Combine(startupPath, shortLinkName + ".lnk");
 
             checkBox1.Checked = File.Exists(shortcutPath);
+            checkBox2.Checked = File.Exists(logFlagFile);
             this.textBox1.Text = Server.Url;
-
+            textBoxLog.ReadOnly = true;
+            Server.Instance.LogChanged += Instance_LogChanged;
             button3_Click(null, null);
+
+        }
+
+        private void Instance_LogChanged(object sender, string e)
+        {
+            if (this.InvokeRequired)
+            {
+                this.BeginInvoke(new Action(() => UpdateLogDisplay(e)));
+            }
+            else
+            {
+                UpdateLogDisplay(e);
+            }
+        }
+
+        private void UpdateLogDisplay(string newLogEntry)
+        {
+            // 如果当前行数超过限制，移除第一行
+            if (textBoxLog.Lines.Length >= 100)
+            {
+                // 找到第一个换行符的位置
+                int firstLineEnd = textBoxLog.Text.IndexOf('\n');
+                if (firstLineEnd != -1)
+                {
+                    textBoxLog.Text = textBoxLog.Text.Substring(firstLineEnd + 1);
+                }
+            }
+
+            // 添加新日志
+            textBoxLog.AppendText(newLogEntry + Environment.NewLine);
+
+            // 自动滚动到底部
+            textBoxLog.ScrollToCaret();
         }
 
         private string checkCert()
@@ -118,7 +156,7 @@ namespace Push反向代理
                 }
 
                 string certFilePath = certFiles[0]; // 使用第一个匹配的证书文件
-                string certPassword = "1234"; // 你可以考虑从配置或输入框获取这个密码
+                string certPassword = Path.GetFileNameWithoutExtension(certFilePath); // 你可以考虑从配置或输入框获取这个密码
 
                 X509Certificate2 certificate = new X509Certificate2(certFilePath, certPassword, X509KeyStorageFlags.Exportable);
 
@@ -134,7 +172,7 @@ namespace Push反向代理
             }
             catch (Exception ex)
             {
-                this.textBoxcert.Text = $"配置错误：证书加载失败：{ex.Message}";
+                this.textBoxcert.Text = $"证书错误：{ex.Message}";
                 this.labelErr.ForeColor = Color.Red;
                 return null;
             }
@@ -215,6 +253,59 @@ namespace Push反向代理
         {
             exitRequested = true;
             Application.Exit();
+        }
+        string logFlagFile = "log.enabled";
+
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+
+            if (checkBox2.Checked)
+            {
+                // 如果勾选，创建文件（如果不存在）
+                File.WriteAllText(logFlagFile, "删除本文件可以禁止输出日志");
+            }
+            else
+            {
+                // 如果取消勾选，删除文件（如果存在）
+                try
+                {
+                    if (File.Exists(logFlagFile))
+                    {
+                        File.Delete(logFlagFile);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("无法删除日志标记文件：" + ex.Message);
+                }
+            }
+            Server.Instance.LogEnabled = checkBox2.Checked;
+        }
+
+        private void linkLabel2_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+
+            try
+            {
+                if (File.Exists(logFilePath))
+                {
+                    // 使用 ProcessStartInfo 提高兼容性，并避免自动寻找关联程序失败的情况
+                    Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = logFilePath,
+                        UseShellExecute = true // 让系统决定如何打开
+                    });
+                }
+                else
+                {
+                    MessageBox.Show("现在还没有任何记录", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"无法打开日志文件：{ex.Message}", "错误", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
     }
 }

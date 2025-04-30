@@ -10,15 +10,22 @@ using System.Threading.Tasks;
 public static class My_ttkefuPush
 {
     internal static string certFile;
-
-    public static async Task<string> SendPushNotification(string token, string msg = "", string issound = "")
+    public static async Task<string> SendPushNotification(PushRequest push)
     {
+        if (push.Token == null)
+        {
+            return "错误：缺少Token参数";
+        }
+        if (push.Topic == null)
+        {
+            return "错误：缺少Topic参数";
+        }
         // 加载 p12 证书
         if (!File.Exists(certFile))
         {
             return "反向代理的运行目录里缺少证书文件";
         }
-        string p12Password = "1234";
+        string p12Password = Path.GetFileNameWithoutExtension(certFile);
         X509Certificate2 certificate = new X509Certificate2(certFile, p12Password, X509KeyStorageFlags.Exportable);
 
         if (!certificate.HasPrivateKey)
@@ -28,21 +35,7 @@ public static class My_ttkefuPush
 
         // APNs 设置
         string apnsEndpoint = "https://api.push.apple.com";
-        string topic = "kefuSystem.production.IMClient";
-
-        var payload = new
-        {
-            aps = new
-            {
-                alert = new
-                {
-                    title = "kefuSystem",
-                    body = msg
-                },
-                sound = issound,
-                badge = 1
-            }
-        };
+        string topic = push.Topic;
 
         // 构建自定义 Handler
         var handler = new SocketsHttpHandler
@@ -73,11 +66,10 @@ public static class My_ttkefuPush
         };
 
         // 构建 JSON 请求体
-        string jsonString = JsonSerializer.Serialize(payload);
-        var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+        var content = new StringContent(push.Payload, Encoding.UTF8, "application/json");
 
         // 构建请求
-        var request = new HttpRequestMessage(HttpMethod.Post, $"{apnsEndpoint}/3/device/{token}")
+        var request = new HttpRequestMessage(HttpMethod.Post, $"{apnsEndpoint}/3/device/{push.Token}")
         {
             Version = new Version(2, 0), // 明确指定 HTTP/2
             Content = content
@@ -92,12 +84,20 @@ public static class My_ttkefuPush
 
         // 输出响应
         string responseBody = await response.Content.ReadAsStringAsync();
-        Console.WriteLine($"状态码: {(int)response.StatusCode} {response.ReasonPhrase}");
-        Console.WriteLine($"响应内容: {responseBody}");
+        if (response.StatusCode == System.Net.HttpStatusCode.OK)
+        {
+            return "OK";
+        }
 
-        // 确保成功
-        response.EnsureSuccessStatusCode();
-
-        return "推送成功！";
+        else
+        {
+            return $"推送失败：苹果返回{response.StatusCode},{responseBody}";
+        }
+    }
+    public class PushRequest
+    {
+        public string Topic { get; set; }
+        public string Token { get; set; }
+        public string Payload { get; set; }
     }
 }

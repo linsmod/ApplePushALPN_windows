@@ -46,6 +46,9 @@
             textBoxcert = new TextBox();
             label5 = new Label();
             linkLabel1 = new LinkLabel();
+            checkBox2 = new CheckBox();
+            textBoxLog = new TextBox();
+            linkLabel2 = new LinkLabel();
             statusStrip1.SuspendLayout();
             contextMenuStrip1.SuspendLayout();
             SuspendLayout();
@@ -53,7 +56,7 @@
             // checkBox1
             // 
             checkBox1.AutoSize = true;
-            checkBox1.Location = new Point(29, 320);
+            checkBox1.Location = new Point(29, 283);
             checkBox1.Name = "checkBox1";
             checkBox1.Size = new Size(108, 28);
             checkBox1.TabIndex = 1;
@@ -93,9 +96,9 @@
             // 
             statusStrip1.ImageScalingSize = new Size(24, 24);
             statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripStatusLabel1 });
-            statusStrip1.Location = new Point(0, 503);
+            statusStrip1.Location = new Point(0, 518);
             statusStrip1.Name = "statusStrip1";
-            statusStrip1.Size = new Size(368, 38);
+            statusStrip1.Size = new Size(1047, 38);
             statusStrip1.TabIndex = 10;
             statusStrip1.Text = "statusStrip1";
             // 
@@ -193,12 +196,47 @@
             linkLabel1.Text = "推送测试...";
             linkLabel1.LinkClicked += linkLabel1_LinkClicked;
             // 
+            // checkBox2
+            // 
+            checkBox2.AutoSize = true;
+            checkBox2.Location = new Point(29, 320);
+            checkBox2.Name = "checkBox2";
+            checkBox2.Size = new Size(108, 28);
+            checkBox2.TabIndex = 1;
+            checkBox2.Text = "记录日志";
+            checkBox2.UseVisualStyleBackColor = true;
+            checkBox2.CheckedChanged += checkBox2_CheckedChanged;
+            // 
+            // textBoxLog
+            // 
+            textBoxLog.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            textBoxLog.BorderStyle = BorderStyle.FixedSingle;
+            textBoxLog.Location = new Point(372, 24);
+            textBoxLog.Multiline = true;
+            textBoxLog.Name = "textBoxLog";
+            textBoxLog.ScrollBars = ScrollBars.Vertical;
+            textBoxLog.Size = new Size(644, 479);
+            textBoxLog.TabIndex = 15;
+            // 
+            // linkLabel2
+            // 
+            linkLabel2.AutoSize = true;
+            linkLabel2.Location = new Point(27, 351);
+            linkLabel2.Name = "linkLabel2";
+            linkLabel2.Size = new Size(118, 24);
+            linkLabel2.TabIndex = 16;
+            linkLabel2.TabStop = true;
+            linkLabel2.Text = "打开日志文件";
+            linkLabel2.LinkClicked += linkLabel2_LinkClicked;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(11F, 24F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
-            ClientSize = new Size(368, 541);
+            ClientSize = new Size(1047, 556);
+            Controls.Add(linkLabel2);
+            Controls.Add(textBoxLog);
             Controls.Add(linkLabel1);
             Controls.Add(label5);
             Controls.Add(label4);
@@ -209,10 +247,11 @@
             Controls.Add(label1);
             Controls.Add(textBoxcert);
             Controls.Add(textBox1);
+            Controls.Add(checkBox2);
             Controls.Add(checkBox1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             Name = "Form1";
-            Text = "ApRelayHost 1.0";
+            Text = "ApsRelayHost 1.0";
             FormClosing += Form1_FormClosing;
             Load += Form1_Load;
             statusStrip1.ResumeLayout(false);
@@ -227,7 +266,6 @@
         private TextBox textBox1;
         private Label label1;
         private TextBox textBox2;
-        private Label label2;
         private Label label3;
         private TextBox textBox3;
         private Button button2;
@@ -246,5 +284,8 @@
         private TextBox textBoxcert;
         private Label label5;
         private LinkLabel linkLabel1;
+        private CheckBox checkBox2;
+        private TextBox textBoxLog;
+        private LinkLabel linkLabel2;
     }
 }

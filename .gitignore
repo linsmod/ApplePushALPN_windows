@@ -1,4 +1,7 @@
 /.vs
 /bin
 /obj
-/Push反向代理.csproj.user
+*.p12
+Aps反向代理源码+客户端调用示例.zip
+.gitignore
+Aps反向代理.csproj.user

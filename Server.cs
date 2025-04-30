@@ -6,6 +6,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Push反向代理;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Tab;
+using static My_ttkefuPush;
 
 namespace ConsoleApp2
 {
@@ -19,6 +21,51 @@ namespace ConsoleApp2
         private readonly object _lock = new();
 
         public static Server Instance { get; } = new();
+        public bool LogEnabled { get; internal set; }
+
+        private static readonly SemaphoreSlim LogLock = new SemaphoreSlim(1, 1); // 异步锁
+        public event EventHandler<string> LogChanged;
+
+        protected virtual void OnLogChanged(string e)
+        {
+            try
+            {
+                LogChanged?.BeginInvoke(this, e,null,null);
+            }
+            catch (Exception ex) { }
+        }
+
+        private async Task LogRequestAsync(string logMessage)
+        {
+            if (!LogEnabled)
+                return;
+            string logFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log.txt");
+
+            try
+            {
+                await LogLock.WaitAsync();
+
+                try
+                {
+                    var newLogEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {logMessage}";
+                    // 触发事件
+                    OnLogChanged(newLogEntry);
+
+                    using (var writer = new StreamWriter(logFilePath, true))
+                    {
+                        await writer.WriteLineAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss} - {logMessage}");
+                    }
+                }
+                finally
+                {
+                    LogLock.Release();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"无法写入日志文件: {ex.Message}");
+            }
+        }
 
         public async Task StartAsync(Form1 mainForm, bool isMockTest)
         {
@@ -49,8 +96,9 @@ namespace ConsoleApp2
                 listener = new HttpListener();
                 listener.Prefixes.Add(Url);
                 listener.Start();
-                Console.WriteLine($"监听地址：{Url}");
+                await LogRequestAsync($"服务已启动，监听地址：{Url}");
                 mainForm.OnServiceStarted();
+
                 while (!token.IsCancellationRequested)
                 {
                     HttpListenerContext context = await listener.GetContextAsync().WithCancellation(token);
@@ -62,12 +110,14 @@ namespace ConsoleApp2
                     else
                     {
                         await WriteResponse(context, "Error, 无效请求");
+                        await LogRequestAsync($"收到无效请求: {context.Request.HttpMethod} {context.Request.Url}");
                     }
                 }
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("服务已取消");
+                //Console.WriteLine("服务已取消");
+                //await LogRequestAsync("服务已取消");
             }
             catch (Exception ex)
             {
@@ -76,6 +126,7 @@ namespace ConsoleApp2
                 {
                     mainForm.OnServiceFailed(ex); // 调用窗体方法通知 UI
                 });
+                await LogRequestAsync($"服务异常: {ex.Message}");
             }
             finally
             {
@@ -86,10 +137,9 @@ namespace ConsoleApp2
                 {
                     mainForm.OnServiceStopped(); // 调用窗体方法通知 UI
                 });
+                await LogRequestAsync("服务已停止");
             }
         }
-
-        record PushRequest(string Token, string Message, string? Sound);
 
         static async Task HandlePushRequest(HttpListenerContext context)
         {
@@ -97,10 +147,9 @@ namespace ConsoleApp2
             {
                 using var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8);
                 string body = await reader.ReadToEndAsync();
-                Console.WriteLine("RECV:" + body);
                 var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var request = JsonSerializer.Deserialize<PushRequest>(body, options);
-
+                await Instance.LogRequestAsync($"收到POST请求: {body}");
                 if (request == null || string.IsNullOrEmpty(request.Token))
                 {
                     await WriteResponse(context, "Error，缺少Token参数");
@@ -113,16 +162,15 @@ namespace ConsoleApp2
                     return;
                 }
 
-                var result = await My_ttkefuPush.SendPushNotification(
-                     request.Token,
-                     request.Message,
-                     request.Sound ?? "default");
+                var result = await SendPushNotification(
+                     request);
 
                 await WriteResponse(context, result);
             }
             catch (Exception ex)
             {
                 await WriteResponse(context, $"Error: {ex.Message}");
+                await Instance.LogRequestAsync($"Error: {ex.Message}");
             }
         }
 
@@ -135,10 +183,11 @@ namespace ConsoleApp2
                 context.Response.ContentType = "text/plain; charset=utf-8";
                 await context.Response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
                 context.Response.Close();
+                await Instance.LogRequestAsync($"响应内容: {message}");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("回写HTTP响应失败：" + ex.Message);
+                await Instance.LogRequestAsync($"响应失败: {ex.Message}");
             }
         }
     }

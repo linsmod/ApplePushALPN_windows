@@ -1,0 +1,72 @@
+﻿using System;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+namespace ttkefu.apple.push
+{
+    public static class ttkefuPush
+    {
+        private const string ApiUrl = "http://localhost:5000/api/push";
+
+        public static Task<string> SendPushNotification(string token, string msg = "", string issound = "")
+        {
+            try
+            {
+                string topic = "ttkefu.guoyl.IMClient";
+                var payload = new JObject(
+                    new JProperty("aps", new JObject(
+                        new JProperty("alert", new JObject(
+                            new JProperty("title", "ttkefu"),
+                            new JProperty("body", msg)
+                        )),
+                        new JProperty("sound", string.IsNullOrEmpty(issound) ? "default" : issound),
+                        new JProperty("badge", 1),
+                        new JProperty("content-available", 1)
+                    )),
+                    new JProperty("MsgType", "msg_type_1"),
+                    new JProperty("MsgId", "msg_id_111")
+                );
+
+                string jsonPayload = payload.ToString();
+                var request = new PushRequest
+                {
+                    Token = token,
+                    Topic = topic,
+                    Payload = JsonConvert.SerializeObject(payload)
+                };
+
+                var json = JsonConvert.SerializeObject(request);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                using (var client = new HttpClient())
+                {
+                    var response = client.PostAsync(ApiUrl, content).Result;
+                    var responseBody = response.Content.ReadAsStringAsync().Result;
+
+                    Console.WriteLine($"状态码: {(int)response.StatusCode} {response.ReasonPhrase}");
+                    Console.WriteLine($"响应内容: {responseBody}");
+
+                    response.EnsureSuccessStatusCode();
+                    if (responseBody == "OK")
+                        return Task.FromResult("推送成功！");
+                    else
+                        return Task.FromResult(responseBody);
+                }
+            }
+            catch (Exception ex)
+            {
+                return Task.FromResult("推送失败" + ex.Message);
+            }
+        }
+
+        // 请求模型类
+        public class PushRequest
+        {
+            public string Topic;
+            public string Token { get; set; }
+            public string Payload { get; set; }
+        }
+    }
+}
